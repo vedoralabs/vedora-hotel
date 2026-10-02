@@ -1,0 +1,151 @@
+<app-staff-bar title="Kitchen display" device="KDS-01 · Main line">
+  <label class="flex cursor-pointer items-center gap-2 rounded-full border border-cream/20 py-1 pr-1 pl-3 text-sm has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-saffron">
+    Autopilot
+    <input type="checkbox" class="peer sr-only" role="switch" [checked]="store.autopilot()" (change)="store.setAutopilot(!store.autopilot())" />
+    <span class="relative h-6 w-11 rounded-full bg-night-3 transition peer-checked:bg-saffron" aria-hidden="true">
+      <span class="absolute top-1 left-1 size-4 rounded-full bg-cream transition" [class.translate-x-5]="store.autopilot()"></span>
+    </span>
+  </label>
+  <a routerLink="/counter" class="rounded-full border border-cream/20 px-3 py-1.5 text-sm hover:bg-cream/10">Billing counter</a>
+</app-staff-bar>
+
+<main id="main" class="px-4 pt-4 pb-10 sm:px-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter by station">
+      <button
+        type="button"
+        role="radio"
+        [attr.aria-checked]="station() === 'all'"
+        class="rounded-full px-3 py-1.5 text-sm font-medium"
+        [class.bg-cream]="station() === 'all'"
+        [class.text-ink]="station() === 'all'"
+        [class.opacity-70]="station() !== 'all'"
+        (click)="station.set('all')"
+      >
+        All stations
+      </button>
+      @for (s of stations; track s[0]) {
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="station() === s[0]"
+          class="rounded-full px-3 py-1.5 text-sm font-medium"
+          [class.bg-cream]="station() === s[0]"
+          [class.text-ink]="station() === s[0]"
+          [class.opacity-70]="station() !== s[0]"
+          (click)="station.set(s[0])"
+        >
+          {{ s[1] }}
+        </button>
+      }
+    </div>
+    <p class="text-xs text-cream/60">
+      {{ store.autopilot() ? 'Autopilot on — a virtual crew is cooking. Turn it off to drive tickets yourself.' : 'Manual mode — tap the buttons to move tickets.' }}
+    </p>
+  </div>
+
+  @if (incoming().length) {
+    <div class="printing mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-cream/20 px-4 py-3 text-sm" aria-live="polite">
+      <app-icon name="printer" class="size-5 text-saffron" />
+      <span class="text-cream/80">Incoming from billing:</span>
+      @for (o of incoming(); track o.id) {
+        <span class="rounded-full bg-night-3 px-3 py-1 font-mono">#{{ o.token }} · {{ o.status === 'paid' ? 'invoicing…' : 'printing KOT…' }}</span>
+      }
+    </div>
+  }
+
+  <!-- Mobile column switcher -->
+  <div class="mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-night-2 p-1 lg:hidden" role="tablist" aria-label="Ticket columns">
+    @for (c of columns; track c.status) {
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="mobileCol() === c.status"
+        class="rounded-xl px-2 py-2 text-sm font-semibold"
+        [class.bg-cream]="mobileCol() === c.status"
+        [class.text-ink]="mobileCol() === c.status"
+        (click)="mobileCol.set(c.status)"
+      >
+        {{ c.title }} · {{ byColumn().get(c.status)!.length }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-4 grid gap-4 lg:grid-cols-3">
+    @for (c of columns; track c.status) {
+      <section class="rounded-3xl bg-night-2/70 p-3 lg:block" [class.hidden]="mobileCol() !== c.status" [attr.aria-labelledby]="'col-' + c.status">
+        <h2 [id]="'col-' + c.status" class="flex items-center gap-2 px-2 py-2 font-semibold">
+          <span class="size-2.5 rounded-full {{ c.tone }}" aria-hidden="true"></span>
+          {{ c.title }}
+          <span class="ml-auto rounded-full bg-night-3 px-2.5 py-0.5 text-sm tabular-nums">{{ byColumn().get(c.status)!.length }}</span>
+        </h2>
+
+        <ul class="mt-2 space-y-3">
+          @for (o of byColumn().get(c.status)!; track o.id) {
+            <li class="ticket overflow-hidden rounded-2xl bg-paper text-ink">
+              <div
+                class="flex items-center justify-between gap-3 px-4 py-3"
+                [class.bg-chili]="isLate(o) && c.status !== 'ready'"
+                [class.text-paper]="isLate(o) && c.status !== 'ready'"
+                [class.bg-cream-2]="!isLate(o) || c.status === 'ready'"
+              >
+                <div>
+                  <p class="font-mono text-2xl leading-none font-bold">#{{ o.token }}</p>
+                  <p class="mt-1 text-xs font-semibold tracking-wide uppercase">
+                    {{ o.mode === 'takeaway' ? '🛍 Takeaway · pack' : 'Table ' + o.table }}
+                  </p>
+                </div>
+                <div class="text-right font-mono">
+                  <p class="text-lg font-bold tabular-nums" [attr.aria-label]="'In this stage for ' + since(o)">{{ since(o) }}</p>
+                  <p class="text-[11px] opacity-75">total {{ totalAge(o) }}{{ isLate(o) && c.status !== 'ready' ? ' · LATE' : '' }}</p>
+                </div>
+              </div>
+
+              <ul class="divide-y divide-line px-4">
+                @for (l of o.lines; track $index) {
+                  <li class="flex gap-3 py-2.5" [class.opacity-35]="dim(l.station)">
+                    <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-ink font-mono font-bold text-cream">{{ l.qty }}</span>
+                    <div class="min-w-0">
+                      <p class="leading-tight font-semibold">{{ l.name }}</p>
+                      @if (l.choices.length) {
+                        <p class="text-sm text-ink-2">
+                          @for (ch of l.choices; track ch.id) {{{ ch.label }}{{ $last ? '' : ' · ' }}}
+                        </p>
+                      }
+                      @if (l.note) {
+                        <p class="mt-0.5 inline-block rounded bg-saffron/40 px-1.5 text-sm font-semibold">{{ l.note }}</p>
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
+
+              @if (o.instructions) {
+                <p class="mx-4 mb-3 rounded-xl bg-saffron/30 px-3 py-2 text-sm"><strong>Note:</strong> {{ o.instructions }}</p>
+              }
+
+              <div class="flex items-center gap-2 border-t border-line p-3">
+                <span class="flex-1 text-xs text-ink-2">{{ itemCount(o) }} items · {{ o.customer.name }}</span>
+                <button
+                  type="button"
+                  class="btn px-4 py-2.5"
+                  [class.bg-ink]="c.status !== 'preparing'"
+                  [class.text-cream]="c.status !== 'preparing'"
+                  [class.bg-saffron]="c.status === 'preparing'"
+                  (click)="advance(o, c)"
+                  [attr.aria-label]="c.action + ' for token ' + o.token"
+                >
+                  {{ c.action }}
+                </button>
+              </div>
+            </li>
+          } @empty {
+            <li class="rounded-2xl border border-dashed border-cream/15 px-4 py-10 text-center text-sm text-cream/50">
+              {{ c.status === 'queued' ? 'No new tickets. Waiting for paid orders…' : c.status === 'preparing' ? 'Nothing on the stove.' : 'Pass is clear.' }}
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+</main>

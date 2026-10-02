@@ -1,0 +1,275 @@
+@if (cart.isEmpty() && !phase()) {
+  <section class="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
+    <p class="font-display text-3xl font-bold">Nothing to pay for yet</p>
+    <p class="mt-2 text-ink-2">Your cart is empty. Pick something delicious first.</p>
+    <a routerLink="/menu" class="btn-primary mt-8">Open the menu</a>
+  </section>
+} @else {
+  <div class="mx-auto max-w-6xl px-4 pt-6 pb-32 lg:pb-16">
+    <a routerLink="/menu" class="inline-flex items-center gap-2 rounded-full py-2 text-sm font-medium text-ink-2 hover:text-ink">
+      <app-icon name="back" class="size-4" /> Back to menu
+    </a>
+    <h1 class="mt-2 font-display text-4xl font-bold">Checkout</h1>
+    <p class="mt-1 text-ink-2">Pay now and your order is sent straight to our billing counter and kitchen.</p>
+
+    <form class="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]" novalidate (submit)="pay($event)">
+      <div class="space-y-6">
+        <!-- 1. Where -->
+        <section id="where" class="card p-6" aria-labelledby="where-h">
+          <h2 id="where-h" class="flex items-center gap-3 text-lg font-semibold">
+            <span class="grid size-7 place-items-center rounded-full bg-ink text-xs text-cream">1</span>
+            Where are you eating?
+          </h2>
+          <div class="mt-4">
+            <app-mode-picker (picked)="showModeError.set(false)" />
+          </div>
+          @if (showModeError() && needsMode()) {
+            <p class="field-error" role="alert">
+              {{ tableMissing() ? 'Please choose your table number.' : 'Please choose dine-in or takeaway.' }}
+            </p>
+          }
+        </section>
+
+        <!-- 2. Details -->
+        <section class="card p-6" aria-labelledby="details-h">
+          <h2 id="details-h" class="flex items-center gap-3 text-lg font-semibold">
+            <span class="grid size-7 place-items-center rounded-full bg-ink text-xs text-cream">2</span>
+            Your details
+          </h2>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label for="name" class="field-label">Name</label>
+              <input
+                id="name"
+                class="field-input"
+                autocomplete="name"
+                [formField]="f.name"
+                [attr.aria-invalid]="!!errorOf(f.name())"
+                aria-describedby="name-err"
+              />
+              <p id="name-err" class="field-error" [hidden]="!errorOf(f.name())">{{ errorOf(f.name()) }}</p>
+            </div>
+            <div>
+              <label for="phone" class="field-label">Mobile number</label>
+              <div class="flex">
+                <span class="grid place-items-center rounded-l-xl border border-r-0 border-line bg-cream-2 px-3 text-sm text-ink-2">+91</span>
+                <input
+                  id="phone"
+                  class="field-input rounded-l-none"
+                  type="tel"
+                  inputmode="numeric"
+                  autocomplete="tel-national"
+                  [formField]="f.phone"
+                  [attr.aria-invalid]="!!errorOf(f.phone())"
+                  aria-describedby="phone-err phone-hint"
+                />
+              </div>
+              <p id="phone-hint" class="mt-1.5 text-xs text-ink-2">We’ll text your e-bill here. No spam.</p>
+              <p id="phone-err" class="field-error" [hidden]="!errorOf(f.phone())">{{ errorOf(f.phone()) }}</p>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="instr" class="field-label">Instructions for the kitchen <span class="font-normal text-ink-2">(optional)</span></label>
+              <textarea
+                id="instr"
+                rows="2"
+                class="field-input resize-none"
+                placeholder="Allergies, Jain food, extra plates…"
+                [formField]="f.instructions"
+                [attr.aria-invalid]="!!errorOf(f.instructions())"
+              ></textarea>
+              <p class="field-error" [hidden]="!errorOf(f.instructions())">{{ errorOf(f.instructions()) }}</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Payment -->
+        <section class="card p-6" aria-labelledby="pay-h">
+          <h2 id="pay-h" class="flex items-center gap-3 text-lg font-semibold">
+            <span class="grid size-7 place-items-center rounded-full bg-ink text-xs text-cream">3</span>
+            Payment
+          </h2>
+
+          <div class="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-cream-2 p-1.5" role="radiogroup" aria-label="Payment method">
+            @for (m of [{ id: 'upi', label: 'UPI', icon: 'upi' }, { id: 'card', label: 'Debit / Credit card', icon: 'card' }]; track m.id) {
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="model().method === m.id"
+                class="flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition"
+                [class.bg-paper]="model().method === m.id"
+                [class.shadow-card]="model().method === m.id"
+                [class.text-ink-2]="model().method !== m.id"
+                (click)="setMethod($any(m.id))"
+              >
+                <app-icon [name]="$any(m.icon)" class="size-5" /> {{ m.label }}
+              </button>
+            }
+          </div>
+
+          @if (model().method === 'upi') {
+            <div class="mt-5 animate-rise">
+              <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="UPI option">
+                @for (u of [{ id: 'id', label: 'Pay with UPI ID' }, { id: 'qr', label: 'Scan QR code' }]; track u.id) {
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="model().upiMode === u.id"
+                    class="rounded-full border px-4 py-2 text-sm font-medium"
+                    [class.border-ink]="model().upiMode === u.id"
+                    [class.bg-ink]="model().upiMode === u.id"
+                    [class.text-cream]="model().upiMode === u.id"
+                    [class.border-line]="model().upiMode !== u.id"
+                    (click)="setUpiMode($any(u.id))"
+                  >
+                    {{ u.label }}
+                  </button>
+                }
+              </div>
+              @if (model().upiMode === 'id') {
+                <div class="mt-4">
+                  <label for="upi" class="field-label">UPI ID</label>
+                  <input
+                    id="upi"
+                    class="field-input"
+                    placeholder="yourname@okbank"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    [formField]="f.upiId"
+                    [attr.aria-invalid]="!!errorOf(f.upiId())"
+                    aria-describedby="upi-err upi-hint"
+                  />
+                  <p id="upi-hint" class="mt-1.5 text-xs text-ink-2">
+                    We’ll send a collect request to your UPI app. <span class="font-medium">Demo tip:</span> any ID works; include “fail” to see a decline.
+                  </p>
+                  <p id="upi-err" class="field-error" [hidden]="!errorOf(f.upiId())">{{ errorOf(f.upiId()) }}</p>
+                </div>
+              } @else {
+                <p class="mt-4 text-sm text-ink-2">You’ll see a QR code to scan with GPay, PhonePe, Paytm or any UPI app.</p>
+              }
+            </div>
+          } @else {
+            <div class="mt-5 grid animate-rise grid-cols-2 gap-4">
+              <div class="col-span-2">
+                <label for="cc" class="field-label">Card number</label>
+                <input
+                  id="cc"
+                  class="field-input font-mono tracking-wider"
+                  inputmode="numeric"
+                  autocomplete="cc-number"
+                  placeholder="4242 4242 4242 4242"
+                  [formField]="f.cardNumber"
+                  (blur)="formatCard()"
+                  [attr.aria-invalid]="!!errorOf(f.cardNumber())"
+                  aria-describedby="cc-err cc-hint"
+                />
+                <p id="cc-hint" class="mt-1.5 text-xs text-ink-2">
+                  <span class="font-medium">Demo cards:</span> 4242 4242 4242 4242 succeeds · 4000 0000 0000 0002 is declined.
+                </p>
+                <p id="cc-err" class="field-error" [hidden]="!errorOf(f.cardNumber())">{{ errorOf(f.cardNumber()) }}</p>
+              </div>
+              <div>
+                <label for="exp" class="field-label">Expiry</label>
+                <input
+                  id="exp"
+                  class="field-input font-mono"
+                  inputmode="numeric"
+                  autocomplete="cc-exp"
+                  placeholder="MM/YY"
+                  [formField]="f.expiry"
+                  (blur)="formatExpiry()"
+                  [attr.aria-invalid]="!!errorOf(f.expiry())"
+                  aria-describedby="exp-err"
+                />
+                <p id="exp-err" class="field-error" [hidden]="!errorOf(f.expiry())">{{ errorOf(f.expiry()) }}</p>
+              </div>
+              <div>
+                <label for="cvv" class="field-label">CVV</label>
+                <input
+                  id="cvv"
+                  class="field-input font-mono"
+                  type="password"
+                  inputmode="numeric"
+                  autocomplete="cc-csc"
+                  [formField]="f.cvv"
+                  [attr.aria-invalid]="!!errorOf(f.cvv())"
+                  aria-describedby="cvv-err"
+                />
+                <p id="cvv-err" class="field-error" [hidden]="!errorOf(f.cvv())">{{ errorOf(f.cvv()) }}</p>
+              </div>
+            </div>
+          }
+
+          <p class="mt-6 flex items-center gap-2 text-xs text-ink-2">
+            <app-icon name="lock" class="size-4" /> Secured payment simulation · No real money moves in this demo
+          </p>
+        </section>
+      </div>
+
+      <!-- Summary -->
+      <aside class="lg:sticky lg:top-24 lg:self-start" aria-labelledby="sum-h">
+        <div class="card overflow-hidden">
+          <div class="border-b border-line bg-cream-2 px-6 py-4">
+            <h2 id="sum-h" class="font-semibold">Order summary</h2>
+            <p class="text-sm text-ink-2">{{ session.label() }} · {{ cart.count() }} item{{ cart.count() > 1 ? 's' : '' }}</p>
+          </div>
+          <ul class="max-h-72 divide-y divide-line overflow-y-auto px-6">
+            @for (row of cart.rows(); track row.key) {
+              <li class="flex items-center gap-3 py-3">
+                <app-dish-art class="size-11 shrink-0" [look]="row.item.look" [seed]="row.item.id" />
+                <div class="min-w-0 flex-1">
+                  <p class="flex items-center gap-1.5 text-sm font-medium">
+                    <app-veg-mark [veg]="row.item.veg" /> <span class="truncate">{{ row.item.name }}</span>
+                  </p>
+                  @if (row.choices.length || row.note) {
+                    <p class="truncate text-xs text-ink-2">
+                      @for (c of row.choices; track c.id) {{{ c.label }}{{ $last ? '' : ', ' }}}
+                      @if (row.note) { “{{ row.note }}” }
+                    </p>
+                  }
+                </div>
+                <span class="text-sm text-ink-2">×{{ row.qty }}</span>
+                <span class="w-16 text-right text-sm font-medium tabular-nums">{{ row.lineTotal | inr }}</span>
+              </li>
+            }
+          </ul>
+          <dl class="space-y-1.5 border-t border-line px-6 py-4 text-sm">
+            <div class="flex justify-between"><dt class="text-ink-2">Item total</dt><dd class="tabular-nums">{{ cart.totals().subtotal | inr }}</dd></div>
+            @if (cart.totals().packaging) {
+              <div class="flex justify-between"><dt class="text-ink-2">Packaging</dt><dd class="tabular-nums">{{ cart.totals().packaging | inr }}</dd></div>
+            }
+            <div class="flex justify-between"><dt class="text-ink-2">CGST 2.5%</dt><dd class="tabular-nums">{{ cart.totals().cgst | inr }}</dd></div>
+            <div class="flex justify-between"><dt class="text-ink-2">SGST 2.5%</dt><dd class="tabular-nums">{{ cart.totals().sgst | inr }}</dd></div>
+            @if (cart.totals().roundOff) {
+              <div class="flex justify-between"><dt class="text-ink-2">Round off</dt><dd class="tabular-nums">{{ cart.totals().roundOff | inr }}</dd></div>
+            }
+            <div class="flex justify-between border-t border-line pt-3 text-lg font-bold"><dt>To pay</dt><dd class="tabular-nums">{{ cart.totals().total | inr }}</dd></div>
+          </dl>
+          <div class="hidden px-6 pb-6 lg:block">
+            <button type="submit" class="btn-saffron w-full py-4 text-base">
+              <app-icon name="lock" class="size-5" /> Pay {{ cart.totals().total | inr }}
+            </button>
+          </div>
+        </div>
+        <p class="mt-4 px-2 text-center text-xs text-ink-2">
+          Pay-first ordering: once paid, your invoice and kitchen ticket print automatically.
+        </p>
+      </aside>
+
+      <div class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        <button type="submit" class="btn-saffron w-full py-4 text-base">
+          <app-icon name="lock" class="size-5" /> Pay {{ cart.totals().total | inr }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<app-pay-overlay
+  [phase]="phase()"
+  [amount]="cart.totals().total"
+  [reason]="declineReason()"
+  [upiId]="model().upiId"
+  (approve)="authorise()"
+  (cancel)="cancelPayment()"
+/>

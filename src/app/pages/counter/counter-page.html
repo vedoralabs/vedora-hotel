@@ -1,0 +1,162 @@
+<app-staff-bar title="Billing counter" device="POS-01 · Thermal printer TP-80">
+  <a routerLink="/kitchen" class="rounded-full border border-cream/20 px-3 py-1.5 text-sm hover:bg-cream/10">Kitchen screen</a>
+  @if (confirmReset()) {
+    <span class="flex items-center gap-1 rounded-full bg-chili/20 py-1 pr-1 pl-3 text-sm" role="group" aria-label="Confirm reset">
+      Clear all orders?
+      <button type="button" class="rounded-full bg-chili px-3 py-1 font-semibold" (click)="resetDemo()">Yes, clear</button>
+      <button type="button" class="rounded-full px-3 py-1 hover:bg-cream/10" (click)="confirmReset.set(false)">No</button>
+    </span>
+  } @else {
+    <button type="button" class="rounded-full border border-cream/20 px-3 py-1.5 text-sm hover:bg-cream/10" (click)="confirmReset.set(true)">
+      Reset demo
+    </button>
+  }
+</app-staff-bar>
+
+<main id="main" class="no-print min-h-[calc(100dvh-64px)] bg-cream-2/60 px-4 py-5 sm:px-6">
+  <!-- KPIs -->
+  <section aria-label="Today at a glance" class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    @for (k of kpis(); track k.label) {
+      <div class="rounded-2xl border border-line bg-paper px-4 py-3">
+        <p class="text-xs font-medium text-ink-2">{{ k.label }}</p>
+        <p class="mt-1 text-2xl font-bold tabular-nums">{{ k.value }}</p>
+      </div>
+    }
+  </section>
+
+  <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)_280px] lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+    <!-- Order list -->
+    <section class="rounded-3xl border border-line bg-paper" aria-labelledby="list-h">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <h2 id="list-h" class="font-semibold">Today’s orders</h2>
+        <div class="flex flex-wrap gap-1" role="tablist" aria-label="Filter orders">
+          @for (f of filters; track f.id) {
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="filter() === f.id"
+              class="rounded-full px-3 py-1.5 text-sm font-medium"
+              [class.bg-ink]="filter() === f.id"
+              [class.text-cream]="filter() === f.id"
+              [class.text-ink-2]="filter() !== f.id"
+              (click)="filter.set(f.id)"
+            >
+              {{ f.label }} <span class="opacity-60">{{ counts()[f.id] }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (list().length) {
+        <ul class="max-h-[62dvh] divide-y divide-line overflow-y-auto" role="listbox" aria-label="Orders">
+          @for (o of list(); track o.id) {
+            <li
+              role="option"
+              tabindex="0"
+              [attr.aria-selected]="selected()?.id === o.id"
+              class="flex cursor-pointer items-center gap-4 px-5 py-3.5 outline-offset-[-3px] transition hover:bg-cream"
+              [class.bg-cream]="selected()?.id === o.id"
+              [class.flash]="fresh().has(o.id)"
+              (click)="selectedId.set(o.id)"
+              (keydown.enter)="selectedId.set(o.id)"
+              (keydown.space)="$event.preventDefault(); selectedId.set(o.id)"
+            >
+              <span class="grid size-12 shrink-0 place-items-center rounded-xl bg-night font-mono font-bold text-saffron">{{ o.token }}</span>
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-2">
+                  <span class="font-semibold">{{ o.mode === 'takeaway' ? 'Takeaway' : 'Table ' + o.table }}</span>
+                  <app-status-chip [status]="o.status" />
+                </span>
+                <span class="mt-0.5 block truncate text-sm text-ink-2">{{ o.customer.name }} · {{ o.lines.length }} item{{ o.lines.length > 1 ? 's' : '' }} · {{ o.payment.method === 'upi' ? 'UPI' : 'Card' }}</span>
+              </span>
+              <span class="text-right">
+                <span class="block font-semibold tabular-nums">{{ o.totals.total | inr }}</span>
+                <span class="block font-mono text-xs text-ink-3 tabular-nums">{{ age(o) }} ago</span>
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="px-6 py-16 text-center">
+          <p class="font-semibold">No orders here yet</p>
+          <p class="mt-1 text-sm text-ink-2">
+            Paid orders from the customer app land here automatically.
+            <a routerLink="/menu" target="_blank" rel="noopener" class="font-medium text-ink underline">Place one now<span class="sr-only"> (opens in new tab)</span></a>
+          </p>
+        </div>
+      }
+    </section>
+
+    <!-- Selected order -->
+    <section class="rounded-3xl border border-line bg-paper" aria-labelledby="detail-h">
+      @if (selected(); as o) {
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
+          <h2 id="detail-h" class="font-semibold">Token {{ o.token }} <span class="font-normal text-ink-2">· {{ o.createdAt | date: 'h:mm a' }}</span></h2>
+          <div class="flex rounded-full bg-cream-2 p-1" role="tablist" aria-label="Document">
+            <button type="button" role="tab" [attr.aria-selected]="view() === 'invoice'" class="rounded-full px-3 py-1 text-sm font-medium" [class.bg-paper]="view() === 'invoice'" [class.shadow-card]="view() === 'invoice'" (click)="view.set('invoice')">Invoice</button>
+            <button type="button" role="tab" [attr.aria-selected]="view() === 'kot'" class="rounded-full px-3 py-1 text-sm font-medium" [class.bg-paper]="view() === 'kot'" [class.shadow-card]="view() === 'kot'" (click)="view.set('kot')">KOT</button>
+          </div>
+        </div>
+        <div class="max-h-[46dvh] overflow-y-auto bg-cream-2 p-4">
+          @if (view() === 'invoice') {
+            <app-receipt [order]="o" />
+          } @else {
+            <app-kot [order]="o" />
+          }
+        </div>
+        <div class="flex flex-wrap gap-2 border-t border-line p-4">
+          @if (o.status === 'ready') {
+            <button type="button" class="btn-saffron flex-1" (click)="handOver(o)">
+              <app-icon name="check" class="size-5" /> Mark {{ o.mode === 'takeaway' ? 'collected' : 'served' }}
+            </button>
+          }
+          <button type="button" class="btn-ghost" (click)="print()"><app-icon name="printer" class="size-4" /> Reprint</button>
+          @if (canRefund(o)) {
+            @if (confirmRefund()) {
+              <div class="flex w-full flex-wrap items-center gap-2 rounded-2xl bg-chili/10 p-3 text-sm" role="group" aria-label="Confirm refund">
+                <span class="flex-1">Refund {{ o.totals.total | inr }} to {{ o.payment.detail }}?</span>
+                <button type="button" class="btn bg-chili px-4 py-2 text-paper" (click)="refund(o)">Refund</button>
+                <button type="button" class="btn px-4 py-2" (click)="confirmRefund.set(false)">Keep</button>
+              </div>
+            } @else {
+              <button type="button" class="btn text-chili hover:bg-chili/10" (click)="confirmRefund.set(true)">Refund</button>
+            }
+          }
+        </div>
+      } @else {
+        <div class="grid h-full min-h-64 place-items-center p-8 text-center text-ink-2">
+          <p id="detail-h">Select an order to see its invoice and kitchen ticket.</p>
+        </div>
+      }
+    </section>
+
+    <!-- Printer feed -->
+    <section class="rounded-3xl bg-night p-5 text-cream lg:col-span-2 xl:col-span-1" aria-labelledby="printer-h">
+      <h2 id="printer-h" class="flex items-center gap-2 font-semibold"><app-icon name="printer" class="size-5 text-saffron" /> Printer feed</h2>
+      <p class="mt-1 text-xs text-cream/60">Every paid order prints an invoice, then a KOT is fired to the kitchen.</p>
+      <div class="mt-4 rounded-t-xl bg-night-3 px-3 pt-3">
+        <div class="h-2 rounded-full bg-night" aria-hidden="true"></div>
+        <ol class="overflow-hidden" aria-live="polite">
+          @for (j of printJobs(); track j.key; let first = $first) {
+            <li class="mx-2 flex flex-wrap justify-between gap-x-3 border-b border-dashed border-ink-3/40 bg-paper px-3 py-2 font-mono text-xs text-ink" [class.paper]="first">
+              <span><span class="font-bold">{{ j.kind }}</span> · #{{ j.token }}</span>
+              <span class="text-ink-2">{{ j.at | date: 'h:mm:ss a' }}</span>
+            </li>
+          } @empty {
+            <li class="px-2 py-6 text-center text-xs text-cream/50">Idle — waiting for the next order</li>
+          }
+        </ol>
+      </div>
+    </section>
+  </div>
+</main>
+
+@if (selected(); as o) {
+  <div class="hidden print:block">
+    @if (view() === 'invoice') {
+      <app-receipt [order]="o" />
+    } @else {
+      <app-kot [order]="o" />
+    }
+  </div>
+}

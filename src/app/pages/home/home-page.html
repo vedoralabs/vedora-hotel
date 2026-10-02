@@ -1,0 +1,144 @@
+<!-- Hero -->
+<section class="hero-bg relative overflow-hidden text-cream" aria-labelledby="hero-h">
+  <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-14 pb-0 lg:grid-cols-[1.05fr_1fr] lg:pt-20">
+    <div class="pb-6 lg:pb-24">
+      <p class="animate-rise text-xs font-semibold tracking-[0.2em] text-saffron uppercase">Jayanagar · Bengaluru · Open 7am – 11pm</p>
+      <h1 id="hero-h" class="mt-4 animate-rise font-display text-5xl leading-[1.02] font-bold [animation-delay:80ms] sm:text-6xl">
+        Order from your table.<br />
+        <span class="text-saffron">Pay in a tap.</span><br />
+        We’ll do the cooking.
+      </h1>
+      <p class="mt-6 max-w-lg animate-rise text-lg text-cream/75 [animation-delay:160ms]">
+        Crisp dosas, Donne biryani and filter coffee. No flagging down a waiter, no waiting for the bill. Your order goes from your phone to our kitchen in seconds.
+      </p>
+      <div class="mt-8 flex animate-rise flex-wrap gap-3 [animation-delay:240ms]">
+        <a href="#start" class="btn-saffron px-7 py-4 text-base">Start your order <app-icon name="arrow" class="size-5" /></a>
+        <a routerLink="/menu" class="btn border border-cream/25 px-7 py-4 text-base text-cream hover:bg-cream/10">See the menu</a>
+      </div>
+      <ul class="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-cream/75" aria-label="Highlights">
+        <li class="flex items-center gap-2"><app-icon name="check" class="size-4 text-saffron" /> UPI & cards</li>
+        <li class="flex items-center gap-2"><app-icon name="check" class="size-4 text-saffron" /> GST e-bill instantly</li>
+        <li class="flex items-center gap-2"><app-icon name="check" class="size-4 text-saffron" /> Live order tracking</li>
+      </ul>
+    </div>
+    <div class="relative self-end">
+      <app-hotel-facade class="mx-auto w-full max-w-lg" />
+    </div>
+  </div>
+</section>
+
+<!-- Start -->
+<section id="start" class="scroll-mt-20 border-b border-line bg-paper" aria-labelledby="start-h">
+  <div class="mx-auto max-w-3xl px-4 py-14">
+    <p class="eyebrow text-center">Step 1 of 3</p>
+    <h2 id="start-h" class="mt-2 text-center font-display text-3xl font-bold sm:text-4xl">How are you eating today?</h2>
+    <p class="mt-2 text-center text-ink-2">Scanned the QR at your table? We’ve already picked your table for you.</p>
+    <div class="mt-8">
+      <app-mode-picker />
+    </div>
+    <div class="mt-8 flex flex-col items-center gap-2">
+      <button type="button" class="btn-primary px-10 py-4 text-base" [disabled]="!ready()" (click)="continue()">
+        Continue to menu <app-icon name="arrow" class="size-5" />
+      </button>
+      @if (!ready()) {
+        <p class="text-sm text-ink-2" aria-live="polite">
+          {{ session.mode() === 'dine-in' ? 'Pick your table number to continue.' : 'Choose dine-in or takeaway to continue.' }}
+        </p>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="mx-auto max-w-6xl px-4 py-20" aria-labelledby="how-h">
+  <div class="max-w-2xl">
+    <p class="eyebrow">Pay first, then relax</p>
+    <h2 id="how-h" class="mt-2 font-display text-4xl font-bold">From your phone to your plate</h2>
+    <p class="mt-3 text-ink-2">Like a quick-service counter, without the queue. Here’s what happens after you tap pay.</p>
+  </div>
+  <ol class="relative mt-12 grid gap-6 md:grid-cols-4">
+    <span class="absolute top-7 right-[12%] left-[12%] hidden h-0.5 bg-gradient-to-r from-saffron via-saffron-deep to-leaf md:block" aria-hidden="true"></span>
+    @for (s of steps; track s.title; let i = $index) {
+      <li class="relative">
+        <span class="relative grid size-14 place-items-center rounded-2xl border-4 border-cream bg-ink text-saffron shadow-card">
+          <app-icon [name]="s.icon" class="size-6" />
+        </span>
+        <p class="mt-5 text-xs font-semibold text-ink-3">STEP {{ i + 1 }}</p>
+        <h3 class="mt-1 text-lg font-semibold">{{ s.title }}</h3>
+        <p class="mt-1.5 text-sm text-ink-2">{{ s.text }}</p>
+      </li>
+    }
+  </ol>
+</section>
+
+<!-- Popular -->
+<section class="bg-cream-2/70 py-20" aria-labelledby="pop-h">
+  <div class="mx-auto max-w-6xl px-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="eyebrow">Bengaluru’s favourites</p>
+        <h2 id="pop-h" class="mt-2 font-display text-4xl font-bold">Most ordered this week</h2>
+      </div>
+      <a routerLink="/menu" class="btn-ghost">Full menu <app-icon name="arrow" class="size-4" /></a>
+    </div>
+    <ul class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
+      @for (m of popular; track m.id) {
+        <li class="group card flex flex-col p-4 transition hover:-translate-y-1 hover:shadow-pop">
+          <div class="aspect-square rounded-2xl bg-cream-2 p-3">
+            <app-dish-art class="size-full transition duration-500 group-hover:rotate-6" [look]="m.look" [seed]="m.id" />
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <app-veg-mark [veg]="m.veg" />
+            <h3 class="truncate font-semibold">{{ m.name }}</h3>
+          </div>
+          <p class="mt-1 line-clamp-2 text-sm text-ink-2">{{ m.description }}</p>
+          <div class="mt-auto flex items-center justify-between pt-3">
+            <span class="font-semibold tabular-nums">{{ m.price | inr }}</span>
+            <button
+              type="button"
+              class="rounded-full border border-ink px-4 py-1.5 text-sm font-bold hover:bg-ink hover:text-cream"
+              [attr.aria-label]="'Add ' + m.name"
+              (click)="quickAdd(m.id)"
+            >
+              ADD
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  </div>
+</section>
+
+<!-- Behind the scenes -->
+<section class="mx-auto max-w-6xl px-4 py-20" aria-labelledby="bts-h">
+  <div class="relative overflow-hidden rounded-[36px] bg-night p-8 text-cream sm:p-12">
+    <div class="pointer-events-none absolute -right-20 -bottom-28 size-96 rounded-full bg-saffron/20 blur-3xl" aria-hidden="true"></div>
+    <div class="relative grid gap-10 lg:grid-cols-2 lg:items-center">
+      <div>
+        <p class="text-xs font-semibold tracking-[0.2em] text-saffron uppercase">Behind the scenes</p>
+        <h2 id="bts-h" class="mt-3 font-display text-4xl font-bold">One order. Three screens. Zero waiting.</h2>
+        <p class="mt-4 text-cream/75">
+          Every order you place shows up live on our billing counter and kitchen display. Open them and watch — or place an order and drive it through the kitchen yourself.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a routerLink="/showcase" class="btn-saffron">Open the live showcase <app-icon name="arrow" class="size-5" /></a>
+          <a routerLink="/counter" class="btn border border-cream/25 text-cream hover:bg-cream/10">Billing counter</a>
+          <a routerLink="/kitchen" class="btn border border-cream/25 text-cream hover:bg-cream/10">Kitchen display</a>
+        </div>
+      </div>
+      <ul class="grid grid-cols-3 gap-3" aria-label="The three screens">
+        @for (s of [
+          { icon: 'phone', label: 'Guest phone', sub: 'Menu, pay, track' },
+          { icon: 'printer', label: 'Billing counter', sub: 'Invoice & KOT' },
+          { icon: 'screen', label: 'Kitchen display', sub: 'Tickets & timers' }
+        ]; track s.label) {
+          <li class="rounded-3xl bg-night-2 p-4 text-center ring-1 ring-cream/10">
+            <span class="mx-auto grid size-12 place-items-center rounded-2xl bg-saffron text-ink"><app-icon [name]="$any(s.icon)" class="size-6" /></span>
+            <p class="mt-3 text-sm font-semibold">{{ s.label }}</p>
+            <p class="mt-0.5 text-xs text-cream/60">{{ s.sub }}</p>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+</section>
